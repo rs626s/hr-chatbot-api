@@ -27,6 +27,11 @@ services:
       start_period: 30s
     networks:
       - chatbot-network
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2g
 
 
   # -------------------------
@@ -42,6 +47,11 @@ services:
       - chromadb_data:/chroma/chroma
     networks:
       - chatbot-network
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 4g
 
 
   # -------------------------
@@ -57,6 +67,11 @@ services:
       - ollama_data:/root/.ollama
     networks:
       - chatbot-network
+    deploy:
+      resources:
+        limits:
+          cpus: "8.0"
+          memory: 24g
 
 
   # -------------------------
@@ -76,6 +91,7 @@ services:
       ollama:
         condition: service_started
     environment:
+      JAVA_OPTS: "-Xms512m -Xmx1g"
       SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL}
       SPRING_DATASOURCE_DRIVER: ${SPRING_DATASOURCE_DRIVER}
       SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME}
@@ -106,6 +122,11 @@ services:
       start_period: 40s
     networks:
       - chatbot-network
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1g
 
 
   # -------------------------
@@ -124,6 +145,11 @@ services:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     networks:
       - chatbot-network
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256m
 
 
 volumes:
