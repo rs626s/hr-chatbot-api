@@ -129,10 +129,10 @@ Stores chat messages.
 
 # JPA Mapping Notes
 
-User → Conversation  
+User to Conversation  
 One user can have many conversations. Cascade operations ensure conversations are removed if the user is deleted.
 
-Conversation → Message  
+Conversation to Message  
 One conversation can have many messages. Cascade operations ensure messages are removed if the conversation is deleted.
 
 Fetch Type  
