@@ -1,6 +1,8 @@
 package edu.missouristate.csc615.chatbot.exception;
 
 import edu.missouristate.csc615.chatbot.dto.ErrorResponse;
+import edu.missouristate.csc615.chatbot.exception.UserAlreadyExistsException;
+import org.springframework.web.context.request.WebRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -43,6 +45,21 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
     }
+	
+	@ExceptionHandler(UserAlreadyExistsException.class)
+	public ResponseEntity<ErrorResponse> handleUserAlreadyExists(
+			UserAlreadyExistsException ex, WebRequest request) {
+
+		ErrorResponse error = new ErrorResponse(
+				400,
+				"Bad Request",
+				ex.getMessage(),
+				request.getDescription(false).replace("uri=", "")
+		);
+
+		return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+	}
+
 
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ErrorResponse> handleRuntimeException(
