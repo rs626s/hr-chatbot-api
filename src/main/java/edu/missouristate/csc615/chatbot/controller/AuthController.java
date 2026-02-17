@@ -8,12 +8,14 @@ import edu.missouristate.csc615.chatbot.security.JwtTokenProvider;
 import edu.missouristate.csc615.chatbot.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "*")
 public class AuthController {
 
     private final UserService userService;
@@ -23,7 +25,9 @@ public class AuthController {
     public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest request) {
 
         User user = userService.registerUser(request);
+
         String token = jwtTokenProvider.generateToken(user.getUsername());
+
         AuthResponse response = new AuthResponse(
                 token,
                 "Bearer",
@@ -32,7 +36,8 @@ public class AuthController {
                 user.getEmail(),
                 user.getRole()
         );
-        return ResponseEntity.status(201).body(response);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @PostMapping("/login")
@@ -44,6 +49,7 @@ public class AuthController {
         );
 
         String token = jwtTokenProvider.generateToken(user.getUsername());
+
         AuthResponse response = new AuthResponse(
                 token,
                 "Bearer",
@@ -52,6 +58,7 @@ public class AuthController {
                 user.getEmail(),
                 user.getRole()
         );
-        return ResponseEntity.status(201).body(response);
+
+        return ResponseEntity.ok(response);
     }
 }
