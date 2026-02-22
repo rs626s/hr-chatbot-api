@@ -1,161 +1,30 @@
 services:
-
-  # -------------------------
-  # PostgreSQL Database
-  # -------------------------
   postgres:
     image: postgres:16
     container_name: chatbot-postgres
-    restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_DB: ${POSTGRES_DB:-chatbotdb}
+      POSTGRES_USER: ${POSTGRES_USER:-chatbot_user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_INITDB_ARGS: ${POSTGRES_INITDB_ARGS}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
     ports:
-      - "${POSTGRES_PORT}:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init-scripts:/docker-entrypoint-initdb.d
+    networks:
+      - chatbot-network
+    restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-chatbot_user}"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 30s
-    networks:
-      - chatbot-network
-    deploy:
-      resources:
-        limits:
-          cpus: "2.0"
-          memory: 2g
-
-
-  # -------------------------
-  # ChromaDB
-  # -------------------------
-  chromadb:
-    image: chromadb/chroma:latest
-    container_name: chatbot-chromadb
-    restart: unless-stopped
-    ports:
-      - "${CHROMADB_PORT}:8000"
-    volumes:
-      - chromadb_data:/chroma/chroma
-    networks:
-      - chatbot-network
-    deploy:
-      resources:
-        limits:
-          cpus: "2.0"
-          memory: 4g
-
-
-  # -------------------------
-  # Ollama LLM Service
-  # -------------------------
-  ollama:
-    image: ollama/ollama:latest
-    container_name: chatbot-ollama
-    restart: unless-stopped
-    ports:
-      - "${OLLAMA_PORT}:11434"
-    volumes:
-      - ollama_data:/root/.ollama
-    networks:
-      - chatbot-network
-    deploy:
-      resources:
-        limits:
-          cpus: "8.0"
-          memory: 24g
-
-
-  # -------------------------
-  # Spring Boot Application
-  # -------------------------
-  spring-boot-app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: chatbot-app
-    restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_healthy
-      chromadb:
-        condition: service_started
-      ollama:
-        condition: service_started
-    environment:
-      JAVA_OPTS: "-Xms512m -Xmx1g"
-      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL}
-      SPRING_DATASOURCE_DRIVER: ${SPRING_DATASOURCE_DRIVER}
-      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME}
-      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
-
-      SPRING_JPA_DIALECT: ${SPRING_JPA_DIALECT}
-      SPRING_JPA_DDL: ${SPRING_JPA_DDL}
-      SPRING_JPA_SHOW_SQL: ${SPRING_JPA_SHOW_SQL}
-
-      H2_CONSOLE_ENABLED: ${H2_CONSOLE_ENABLED}
-
-      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
-
-      JWT_SECRET: ${JWT_SECRET}
-      JWT_EXPIRATION: ${JWT_EXPIRATION}
-
-      CHROMADB_URL: ${CHROMADB_URL}
-      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL}
-
-      SERVER_PORT: 8080
-    ports:
-      - "${SPRING_BOOT_PORT}:8080"
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/actuator/health"]
-      interval: 30s
-      timeout: 5s
-      retries: 5
-      start_period: 40s
-    networks:
-      - chatbot-network
-    deploy:
-      resources:
-        limits:
-          cpus: "2.0"
-          memory: 1g
-
-
-  # -------------------------
-  # Nginx Reverse Proxy
-  # -------------------------
-  nginx:
-    image: nginx:alpine
-    container_name: chatbot-nginx
-    restart: unless-stopped
-    depends_on:
-      spring-boot-app:
-        condition: service_healthy
-    ports:
-      - "${NGINX_PORT}:80"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-    networks:
-      - chatbot-network
-    deploy:
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 256m
-
 
 volumes:
   postgres_data:
-  chromadb_data:
-  ollama_data:
+    driver: local
 
 networks:
   chatbot-network:
     driver: bridge
-
