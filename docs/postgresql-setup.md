@@ -1,38 +1,36 @@
 # PostgreSQL Docker Setup Guide
 
-HR Chatbot -- Production Database Configuration
+HR Chatbot - Production Database Configuration
 
-------------------------------------------------------------------------
+---
 
 ## Overview
 
-This guide explains how to configure PostgreSQL using Docker and connect
-it to the Spring Boot application using the production profile.
+This guide explains how to configure PostgreSQL using Docker and connect it to the Spring Boot application using the production profile.
 
-**Architecture:**
+Architecture:
+- Docker runs PostgreSQL
+- Maven runs Spring Boot with prod profile
+- Flyway manages schema migrations
+- Hibernate validates schema (does NOT create or update in production)
 
--   Docker → PostgreSQL
--   Maven → Spring Boot (prod profile)
--   Flyway manages schema migrations
--   Hibernate validates schema (does NOT create/update in production)
-
-------------------------------------------------------------------------
+---
 
 ## Prerequisites
 
--   Docker installed
--   Docker Compose installed
--   Java 17+
--   Maven installed
--   Project cloned to server
+- Docker installed
+- Docker Compose installed
+- Java 17 or higher
+- Maven installed
+- Project cloned to server
 
-------------------------------------------------------------------------
+---
 
-## Step 1: Create `.env` File
+## Step 1: Create .env File
 
-Create a `.env` file in the same directory as `docker-compose.yml`.
+Create a .env file in the same directory as docker-compose.yml.
 
-``` env
+```
 # PostgreSQL
 POSTGRES_DB=chatbotdb
 POSTGRES_USER=chatbot_user
@@ -50,13 +48,15 @@ JWT_SECRET=VeryStrongJWTSecretKeyAtLeast256BitsLong
 JWT_EXPIRATION=86400000
 ```
 
-Important: - Never commit `.env` to Git. - Add `.env` to `.gitignore`.
+Important:
+- Never commit .env to Git
+- Add .env to .gitignore
 
-------------------------------------------------------------------------
+---
 
 ## Step 2: docker-compose.yml (PostgreSQL Only)
 
-``` yaml
+```
 version: '3.8'
 
 services:
@@ -83,45 +83,43 @@ volumes:
   postgres_data:
 ```
 
-------------------------------------------------------------------------
+---
 
 ## Step 3: Start PostgreSQL
 
-``` bash
-docker-compose up -d
+```
+docker compose up -d
 ```
 
 Check status:
 
-``` bash
-docker-compose ps
+```
+docker compose ps
 ```
 
-Wait until the container status shows **healthy**.
-
-------------------------------------------------------------------------
+---
 
 ## Step 4: Verify Database
 
-``` bash
+```
 docker exec -it chatbot-postgres psql -U chatbot_user -d chatbotdb
 ```
 
 Inside PostgreSQL:
 
-``` sql
+```
 \l
 \dt
 \q
 ```
 
-------------------------------------------------------------------------
+---
 
 ## Step 5: Spring Boot Production Configuration
 
-`application-prod.properties` should contain:
+application-prod.properties should contain:
 
-``` properties
+```
 spring.datasource.url=${SPRING_DATASOURCE_URL}
 spring.datasource.driver-class-name=org.postgresql.Driver
 spring.datasource.username=${SPRING_DATASOURCE_USERNAME}
@@ -139,83 +137,91 @@ spring.flyway.locations=classpath:db/migration
 spring.h2.console.enabled=false
 ```
 
-Important: - Always use `ddl-auto=validate` in production. - Flyway
-manages schema changes.
+Important:
+- Always use ddl-auto=validate in production
+- Flyway manages schema changes
 
-------------------------------------------------------------------------
+---
 
 ## Step 6: Load Environment Variables
 
-Before running Spring Boot:
-
-``` bash
+```
 export $(grep -v '^#' .env | xargs)
 ```
 
-------------------------------------------------------------------------
+---
 
-## Step 7: Start Spring Boot (Production Mode)
+## Step 7: Start Spring Boot in Production Mode
 
-``` bash
+```
 mvn spring-boot:run
 ```
 
-Since `.env` sets:
+Since .env sets:
 
-``` env
+```
 SPRING_PROFILES_ACTIVE=prod
 ```
 
-The application will use: - application.properties (common) -
-application-prod.properties
+The application will use:
+- application.properties
+- application-prod.properties
 
-------------------------------------------------------------------------
+---
 
 ## Step 8: Verify Application
 
 Health endpoint:
 
-``` bash
+```
 curl http://localhost:8080/actuator/health
 ```
 
 Verify tables:
 
-``` sql
+```
 SELECT * FROM users;
 ```
 
-------------------------------------------------------------------------
+---
 
 ## Production Safety Rules
 
-Never use in production: - ddl-auto=create - ddl-auto=update -
-ddl-auto=create-drop
+Never use in production:
+- ddl-auto=create
+- ddl-auto=update
+- ddl-auto=create-drop
 
-Always use: - ddl-auto=validate - Flyway migrations
+Always use:
+- ddl-auto=validate
+- Flyway migrations
 
-Never: - Commit `.env` - Hardcode passwords - Expose DB port publicly in
-cloud environments
+Never:
+- Commit .env
+- Hardcode passwords
+- Expose database port publicly in cloud environments
 
-------------------------------------------------------------------------
+---
 
 ## Stop PostgreSQL
 
-``` bash
-docker-compose down
+```
+docker compose down
 ```
 
-To remove volume (WARNING: deletes data):
+To remove volume (warning: deletes data):
 
-``` bash
-docker-compose down -v
+```
+docker compose down -v
 ```
 
-------------------------------------------------------------------------
+---
 
 ## Final Architecture
 
-Server ├── Docker → PostgreSQL (Persistent Volume) └── Maven → Spring
-Boot (Production Profile) ↓ Connects via localhost:5432
+Server
+- Docker runs PostgreSQL with persistent volume
+- Maven runs Spring Boot with production profile
+- Application connects via localhost:5432
 
-PostgreSQL Docker setup is complete and production-ready.
+PostgreSQL Docker setup is complete and production ready.
