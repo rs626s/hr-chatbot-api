@@ -1,6 +1,6 @@
 services:
   spring-boot-app:
-    build: ./team4/spring-boot
+    build: .
     container_name: chatbot-api
     environment:
       SPRING_PROFILES_ACTIVE: prod
