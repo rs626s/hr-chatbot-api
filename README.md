@@ -124,7 +124,7 @@ docker compose logs -f
 docker compose down
 ```
 
-### Stop and delete volumes (⚠️ deletes DB data)
+### Stop and delete volumes (deletes DB data)
 
 ```bash
 docker compose down -v
