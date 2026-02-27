@@ -39,25 +39,25 @@ spring.flyway.baseline-on-migrate=true
 
 mvn spring-boot:run
 
-## 2. Verify Tables
+### 2. Verify Tables
 
 Connect to the database:
 
-```sql
+```bash
 \c chatbotdb
+```
 
 List all tables:
 
+```bash
 \dt
+```
 
 View data from the users table:
 
+```sql
 SELECT * FROM users;
 ```
-### 2. Verify Tables
-
-`\c c`{=tex}hatbotdb\
-`\dt  `{=tex} SELECT \* FROM users;
 
 ### 3. Test Registration API
 
