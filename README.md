@@ -1,24 +1,37 @@
-# HR Chatbot Application
+# HR Chatbot API (Docker Deployment)
 
 ## Overview
 
-The HR Chatbot API is a Spring Boot–based backend service that provides authentication, conversation management, and integration with AI services.
+**HR Chatbot API** is a Spring Boot backend service that provides:
 
-The system is designed to run in Docker using a multi-container architecture and supports deployment both locally and on a Linux server.
+- Authentication (Spring Security + JWT)
+- Conversation and message management
+- Integration hooks for AI services
+- Production database: **PostgreSQL 16** (via Docker)
 
-Services included:
+This project is designed to run fully with **Docker Compose**:
 
-* Spring Boot API
-* PostgreSQL database
-* ChromaDB (vector database)
-* Ollama (LLM service)
-* Nginx (reverse proxy)
+- PostgreSQL runs in one container
+- The Spring Boot application is **built from the Dockerfile** and runs in a second container  
+  (no need to run `mvn spring-boot:run` manually)
+
+---
+
+## Tech Stack
+
+- Java 17 (runtime inside container)
+- Spring Boot
+- Spring Security + JWT
+- Spring Data JPA
+- PostgreSQL 16
+- Flyway (database migrations)
+- Docker + Docker Compose
 
 ---
 
 ## Project Structure
 
-```
+```text
 hr-chatbot-api/
 ├── src/
 ├── Dockerfile
@@ -27,6 +40,7 @@ hr-chatbot-api/
 ├── .env.example
 ├── init-scripts/
 ├── nginx/
+├── docs/
 └── pom.xml
 ```
 
@@ -34,148 +48,98 @@ hr-chatbot-api/
 
 ## Prerequisites
 
-### Local Development
+- Docker Engine
+- Docker Compose (v2)
+- Git (optional, for cloning)
 
-* Java 17
-* Maven
-* Docker Desktop (optional)
+Verify:
 
-### Server Deployment
-
-* Ubuntu / Linux server
-* Docker Engine
-* Docker Compose v2+
-* Git
-
----
-
-## Running Locally (Without Docker)
-
-### Build the project
-
-```
-mvn clean install
-```
-
-### Run the application
-
-```
-mvn spring-boot:run
-```
-
-Application:
-
-```
-http://localhost:8080
-```
-
-H2 Console (local only):
-
-```
-http://localhost:8080/h2-console
+```bash
+docker --version
+docker compose version
 ```
 
 ---
 
-## Running with Docker Compose
+## Environment Configuration (.env)
 
-### Step 1: Clone repository
+Docker Compose reads values from `.env` automatically when you run `docker compose ...` from the project folder.
 
-```
-git clone <repository-url>
-cd hr-chatbot-api
-```
+Create your `.env` file:
 
-### Step 2: Create environment file
-
-```
+```bash
 cp .env.example .env
 nano .env
 ```
 
-Update:
+Example `.env` (adjust values as needed):
 
-* Database password
-* JWT secret
-* Ports if required
+```env
+# ---- Postgres (container) ----
+POSTGRES_DB=chatbotdb
+POSTGRES_USER=chatbot_user
+POSTGRES_PASSWORD=StrongSecurePasswordHere
+POSTGRES_PORT=5432
+
+# ---- Spring Boot profile ----
+SPRING_PROFILES_ACTIVE=prod
+
+# IMPORTANT:
+# Inside Docker Compose, use the *service name* "postgres" (NOT localhost)
+SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/chatbotdb
+SPRING_DATASOURCE_USERNAME=chatbot_user
+SPRING_DATASOURCE_PASSWORD=StrongSecurePasswordHere
+
+# ---- Flyway (optional; usually inherits datasource settings) ----
+SPRING_FLYWAY_ENABLED=true
+
+# ---- Security ----
+JWT_SECRET=VeryStrongJWTSecretKey
+JWT_EXPIRATION=86400000
+
+# ---- Optional AI services ----
+CHROMADB_URL=http://chromadb:8000
+OLLAMA_BASE_URL=http://ollama:11434
+```
 
 ---
 
-### Step 3: Build and start services
+## Run with Docker Compose
 
-```
+### Start (build + run)
+
+```bash
 docker compose up -d --build
 ```
 
----
+### View logs
 
-### Step 4: Verify containers
-
-```
-docker ps
-```
-
-Check logs:
-
-```
+```bash
 docker compose logs -f
 ```
 
----
+### Stop
 
-## Service Verification
-
-### API Health
-
-```
-curl http://localhost:8080/actuator/health
+```bash
+docker compose down
 ```
 
----
+### Stop and delete volumes (deletes DB data)
 
-### Root Endpoint
-
-```
-curl http://localhost:8080/
-```
-
-Response:
-
-```
-{
-  "service": "HR Chatbot API",
-  "status": "running",
-  "message": "API is up and healthy"
-}
+```bash
+docker compose down -v
 ```
 
 ---
 
-### System Status
+## Service URLs
 
-```
-curl http://localhost:8080/system
-```
+If running locally on your machine:
 
-Shows:
+- App: `http://localhost:8080`
+- PostgreSQL: `localhost:${POSTGRES_PORT}` (default `5432`)
 
-* Database status
-* ChromaDB status
-* Ollama status
-
----
-
-### Application Info
-
-```
-curl http://localhost:8080/info
-```
-
-Shows:
-
-* Application name
-* Environment
-* Timestamp
+If running on a server, replace `localhost` with the server IP / domain.
 
 ---
 
@@ -183,43 +147,23 @@ Shows:
 
 ### Authentication
 
-Register:
-
-```
+```text
 POST /api/auth/register
-```
-
-Login:
-
-```
 POST /api/auth/login
 ```
 
----
+For protected endpoints, include the JWT token:
 
-### System Endpoints
-
-Root:
-
+```text
+Authorization: Bearer <token>
 ```
+
+### System / health endpoints
+
+```text
 GET /
-```
-
-System health:
-
-```
 GET /system
-```
-
-Application info:
-
-```
 GET /info
-```
-
-Spring Boot health:
-
-```
 GET /actuator/health
 ```
 
@@ -227,174 +171,85 @@ GET /actuator/health
 
 ## Database
 
-### Local
+### Production
 
-* H2 in-memory database
-
-### Docker / Production
-
-* PostgreSQL container
-
-Schema includes:
-
-* Users
-* Conversations
-* Messages
+- PostgreSQL 16 in Docker
+- Flyway manages schema migrations
+- Main tables:
+  - `users`
+  - `conversations`
+  - `messages`
 
 ---
 
-## Environment Variables
+## Common Troubleshooting
 
-Configured in `.env`:
+### 1) App connects to H2 instead of Postgres
 
-Database:
+If logs show something like:
 
-* POSTGRES_DB
-* POSTGRES_USER
-* POSTGRES_PASSWORD
+- `jdbc:h2:mem:...`
+- `H2 console available ...`
 
-Spring Boot:
+Then the application is not using `prod` settings. Verify:
 
-* SPRING_DATASOURCE_URL
-* SPRING_DATASOURCE_USERNAME
-* SPRING_DATASOURCE_PASSWORD
-* SPRING_PROFILES_ACTIVE
+- `.env` contains `SPRING_PROFILES_ACTIVE=prod`
+- `.env` is in the **same directory** where you run `docker compose up`
+- `SPRING_DATASOURCE_URL` uses `postgres` (service name), not `localhost`
 
-Security:
+### 2) Postgres logs: `FATAL: database "chatbot_user" does not exist`
 
-* JWT_SECRET
-* JWT_EXPIRATION
+This usually happens when a healthcheck connects without specifying the database name.
+Update the healthcheck in `docker-compose.yml` to include the DB:
 
-AI Services:
+```yaml
+healthcheck:
+  test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-chatbot_user} -d ${POSTGRES_DB:-chatbotdb}"]
+```
 
-* CHROMADB_URL
-* OLLAMA_BASE_URL
+### 3) Actuator endpoints return 404 / not reachable
 
-Ports:
+Check:
 
-* SPRING_BOOT_PORT
-* POSTGRES_PORT
-* CHROMADB_PORT
-* OLLAMA_PORT
-* NGINX_PORT
+- the app container is running: `docker compose ps`
+- port mapping exposes 8080
+- Spring Actuator dependency is present
+- Actuator exposure config (if restricted) in `application-prod.properties`
 
 ---
 
-## Deployment on Server
-
-### Step 1: Install Docker
-
-Verify:
-
-```
-docker --version
-docker compose version
-```
-
----
-
-### Step 2: Clone repository
-
-```
-git clone <repository-url>
-cd hr-chatbot-api
-```
-
----
-
-### Step 3: Configure environment
-
-```
-cp .env.example .env
-nano .env
-```
-
----
-
-### Step 4: Build and deploy
-
-```
-docker compose up -d --build
-```
-
----
-
-### Step 5: Verify deployment
-
-```
-docker ps
-curl http://localhost:8080/actuator/health
-curl http://localhost:8080/system
-```
-
----
-
-## Updating Deployment
-
-If code changes:
-
-```
-git pull
-docker compose down
-docker compose up -d --build
-```
-
----
-
-## Stopping Services
-
-```
-docker compose down
-```
-
-Volumes remain intact.
-
----
-
-## Backup Database
+## Database Backup / Restore
 
 Backup:
 
-```
+```bash
 docker exec chatbot-postgres pg_dump -U chatbot_user chatbotdb > backup.sql
 ```
 
 Restore:
 
-```
+```bash
 cat backup.sql | docker exec -i chatbot-postgres psql -U chatbot_user -d chatbotdb
 ```
 
 ---
 
-## Architecture Overview
+## Architecture (High-Level)
 
-```
-                +-------------+
-                |   Nginx     |
-                +------+------+
-                       |
-                +------+------+
-                | Spring Boot |
-                +------+------+
-                       |
-        +--------------+--------------+
-        |                             |
-+-------+--------+           +--------+-------+
-| PostgreSQL DB  |           |  ChromaDB      |
-+----------------+           +----------------+
-                       |
-                 +-----+-----+
-                 |   Ollama  |
-                 +-----------+
+```text
+Client / Browser
+      |
+Spring Boot API (Docker container)
+      |
+PostgreSQL 16 (Docker container)
+      |
+(Optional) ChromaDB / Ollama
 ```
 
 ---
 
 ## Contributors
 
-Team 4 – HR Chatbot API  
+Team 4  
 Missouri State University  
-CSC 615 – AI Project
-
----
+CSC 615 Advanced Internet Programming

@@ -3,6 +3,7 @@ package edu.missouristate.csc615.chatbot.service;
 import edu.missouristate.csc615.chatbot.dto.RegisterRequest;
 import edu.missouristate.csc615.chatbot.entity.User;
 import edu.missouristate.csc615.chatbot.exception.InvalidCredentialsException;
+import edu.missouristate.csc615.chatbot.exception.UnauthorizedException;
 import edu.missouristate.csc615.chatbot.exception.UserAlreadyExistsException;
 import edu.missouristate.csc615.chatbot.repository.UserRepository;
 import org.junit.jupiter.api.Test;
@@ -11,6 +12,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.context.ActiveProfiles;
 
 import java.util.Optional;
 
@@ -18,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@ActiveProfiles("test")
 class UserServiceImplTest {
 
     @Mock
@@ -50,6 +53,8 @@ class UserServiceImplTest {
         assertEquals("testuser", result.getUsername());
         assertEquals("test@example.com", result.getEmail());
         assertEquals("encodedPassword", result.getPasswordHash());
+        assertEquals("USER", result.getRole());
+        assertTrue(result.getEnabled());
 
         verify(userRepository).save(any(User.class));
     }
@@ -97,6 +102,7 @@ class UserServiceImplTest {
         User user = new User();
         user.setUsername("testuser");
         user.setPasswordHash("encodedPassword");
+        user.setEnabled(true);
 
         when(userRepository.findByUsername("testuser"))
                 .thenReturn(Optional.of(user));
@@ -120,7 +126,7 @@ class UserServiceImplTest {
                 assertThrows(InvalidCredentialsException.class,
                         () -> userService.authenticateUser("unknown", "password"));
 
-        assertEquals("Invalid credentials", exception.getMessage());
+        assertEquals("Invalid username or password", exception.getMessage());
     }
 
     @Test
@@ -129,6 +135,7 @@ class UserServiceImplTest {
         User user = new User();
         user.setUsername("testuser");
         user.setPasswordHash("encodedPassword");
+        user.setEnabled(true);
 
         when(userRepository.findByUsername("testuser"))
                 .thenReturn(Optional.of(user));
@@ -140,6 +147,27 @@ class UserServiceImplTest {
                 assertThrows(InvalidCredentialsException.class,
                         () -> userService.authenticateUser("testuser", "wrongpass"));
 
-        assertEquals("Invalid credentials", exception.getMessage());
+        assertEquals("Invalid username or password", exception.getMessage());
+    }
+
+    @Test
+    void authenticateUser_shouldThrowWhenUserDisabled() {
+
+        User user = new User();
+        user.setUsername("testuser");
+        user.setPasswordHash("encodedPassword");
+        user.setEnabled(false);
+
+        when(userRepository.findByUsername("testuser"))
+                .thenReturn(Optional.of(user));
+
+        when(passwordEncoder.matches("password", "encodedPassword"))
+                .thenReturn(true);
+
+        UnauthorizedException exception =
+                assertThrows(UnauthorizedException.class,
+                        () -> userService.authenticateUser("testuser", "password"));
+
+        assertEquals("User account is disabled", exception.getMessage());
     }
 }
